@@ -13,18 +13,18 @@ module ex_mem (
     input  [`REG_IDX] rd_idx_i,
     output  [`REG_IDX] rd_idx_o,
 
-    input wb_sig_i,
-    input visit_sig_i,
-    output wb_sig_o,
-    output visit_sig_o,
+    input wb_i,
+    output wb_o,
 
     input [`DATA_LEN] alu_i,
     output [`DATA_LEN] result_o,
 
+    input rmem_i,
+    input wmem_i,
     input [`DATA_LEN] wmem_data_i,
-    input wmem_en_i,
-    output [`DATA_LEN] wmem_data_o,
-    output wmem_en_o
+    output rmem_o,
+    output wmem_o,
+    output [`DATA_LEN] wmem_data_o
 );
 
     Register #(3, 3'b0) info (
@@ -63,7 +63,7 @@ module ex_mem (
         .clk(clk),
         .wen(!hold),
         .rst(rst),
-        .data_i({wb_sig_i, visit_sig_i, wmem_en_i}),
-        .data_o({wb_sig_o, visit_sig_o, wmem_en_o})
+        .data_i({wb_i, rmem_o, wmem_o}),
+        .data_o({wb_o, rmem_o, wmem_o})
     );
 endmodule

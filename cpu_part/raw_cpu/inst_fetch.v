@@ -19,12 +19,7 @@ module inst_fetch (
     assign cur_pc_o = pc_output;
     assign default_next_pc = pc_output + 4;
 
-    Mux2 mux_pc_in (
-        .select(!jmp),
-        .hi_i(jmp_pc_i),
-        .lo_i(default_next_pc),
-        .data_o(next_pc)
-    );
+    assign next_pc = !jmp ? jmp_pc_i : default_next_pc;
 
     Register pc (
         .clk(clk),

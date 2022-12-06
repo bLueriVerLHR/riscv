@@ -16,12 +16,12 @@ module mem_wb (
     input [`REG_IDX] rd_idx_i,
     output [`REG_IDX] rd_idx_o,
     
-    input wb_sig_i,
-    input visit_sig_i,
-    output wb_sig_o,
-    output visit_sig_o,
-    input wmem_en_i,
-    output wmem_en_o
+    input wb_i,
+    input rmem_i,
+    input wmem_i,
+    output wb_o,
+    output rmem_o,
+    output wmem_o
 );
 
     Register #(64, 64'b0) res (
@@ -44,7 +44,7 @@ module mem_wb (
         .clk(clk),
         .wen(!hold),
         .rst(rst),
-        .data_i({rd_idx_i, wb_sig_i, visit_sig_i, wmem_en_i}),
-        .data_o({rd_idx_o, wb_sig_o, visit_sig_o, wmem_en_o})
+        .data_i({rd_idx_i, wb_i, wmem_i, rmem_i}),
+        .data_o({rd_idx_o, wb_o, wmem_o, rmem_o})
     );
 endmodule

@@ -15,12 +15,18 @@ module Regs (
     reg [`DATA_LEN] regs [31:0];
 
     always @(posedge clk) begin
-        if (!wen) begin
+        if (!wen && rd_idx_i != 5'b0) begin
             regs[rd_idx_i] <= rd_wdata_i;
         end
     end
 
-    assign rs1_data_o = (!wen & rd_idx_i == rs1_idx_i) ? rd_wdata_i : regs[rs1_idx_i];
-    assign rs2_data_o = (!wen & rd_idx_i == rs2_idx_i) ? rd_wdata_i : regs[rs2_idx_i];
+    assign rs1_data_o = rs1_idx_i == 5'b0 ? 64'b0 : (!wen && rd_idx_i == rs1_idx_i) ? rd_wdata_i : regs[rs1_idx_i];
+    assign rs2_data_o = rs2_idx_i == 5'b0 ? 64'b0 : (!wen && rd_idx_i == rs2_idx_i) ? rd_wdata_i : regs[rs2_idx_i];
 
+    initial begin: init_reg
+        integer i;
+        for (i = 0; i < 32; i = i + 1) begin
+            regs[i] = 64'b0;
+        end
+    end
 endmodule

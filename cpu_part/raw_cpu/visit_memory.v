@@ -5,6 +5,7 @@
 module visit_memory (
     input clk,
     input wen,
+    input [2:0] funct3_i,
     input [`ADDR_LEN] waddr_i,
     input [`DATA_LEN] wdata_i,
     input [`ADDR_LEN] raddr_i,
@@ -13,6 +14,7 @@ module visit_memory (
     Memory mem (
         .clk(clk),
         .wen(wen),
+        .funct3_i(funct3_i),
         .waddr_i(waddr_i),
         .wdata_i(wdata_i),
         .raddr_i(raddr_i),

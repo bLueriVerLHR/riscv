@@ -20,11 +20,12 @@ module id_ex (
     input [`REG_IDX] rs2_idx_i,
     input [`REG_IDX] rd_idx_i,
 
-    input wb_sig_i,
-    input visit_sig_i,
+    input wb_i,
+    input rmem_i,
+    input wmem_i,
     input [1:0] rs1_type_i,
     input [1:0] rs2_type_i,
-    input [16:0] exec_i,
+    input [16:0] info_i,
 
     output [`ADDR_LEN] cur_pc_o,
 
@@ -39,11 +40,12 @@ module id_ex (
     output [`REG_IDX] rs2_idx_o,
     output [`REG_IDX] rd_idx_o,
 
-    output wb_sig_o,
-    output visit_sig_o,
+    output wb_o,
+    output rmem_o,
+    output wmem_o,
     output [1:0] rs1_type_o,
     output [1:0] rs2_type_o,
-    output [16:0] exec_o
+    output [16:0] info_o
 );
 
     Register #(64, 64'b0) pc (
@@ -53,14 +55,6 @@ module id_ex (
         .data_i(cur_pc_i),
         .data_o(cur_pc_o)
     );
-
-    // Register #(8, 8'b0) itype (
-    //     .clk(clk),
-    //     .wen(!hold),
-    //     .rst(rst),
-    //     .data_i(inst_type_i),
-    //     .data_o(inst_type_o)
-    // );
 
     Register #(64, 64'b0) imm (
         .clk(clk),
@@ -94,20 +88,20 @@ module id_ex (
         .data_o({rs1_idx_o, rs2_idx_o, rd_idx_o})
     );
 
-    Register #(6, 6'b0) sig (
+    Register #(7, 7'b0) sig (
         .clk(clk),
         .wen(!hold),
         .rst(rst),
-        .data_i({wb_sig_i, visit_sig_i, rs1_type_i, rs2_type_i}),
-        .data_o({wb_sig_o, visit_sig_o, rs1_type_o, rs2_type_o})
+        .data_i({wb_i, rmem_i, wmem_i, rs1_type_i, rs2_type_i}),
+        .data_o({wb_o, rmem_o, wmem_o, rs1_type_o, rs2_type_o})
     );
 
     Register #(17, 17'b0010011_0000000_000) exec (
         .clk(clk),
         .wen(!hold),
         .rst(rst),
-        .data_i(exec_i),
-        .data_o(exec_o)
+        .data_i(info_i),
+        .data_o(info_o)
     );
 
 endmodule

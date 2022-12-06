@@ -3,7 +3,7 @@
 `include "defines.v"
 
 module execute (
-    input [`ADDR_LEN] cur_pc_i,
+    input [`ADDR_LEN] pc_i,
 
     input [`DATA_LEN] imm_i,
 
@@ -17,26 +17,22 @@ module execute (
     input rs2_fwd_sig_i,
     input [1:0] rs1_type_i,
     input [1:0] rs2_type_i,
-    input [16:0] exec_i,
+    input [16:0] info_i,
 
     output [`DATA_LEN] result_o,
     output [`DATA_LEN] wmem_data_o,
-    output wmem_en,
-
     output jmp,
     output [`DATA_LEN] jmp_addr_o
 );
 
-
     wire [6:0] opcode;
     wire [2:0] funct3;
     wire [6:0] funct7;
-    assign {opcode, funct7, funct3} = exec_i;
+    assign {opcode, funct7, funct3} = info_i;
 
-    assign jmp_addr_o = cur_pc_i + imm_i;
+    assign jmp_addr_o = pc_i + imm_i;
 
     assign wmem_data_o = rs2_data_i;
-    assign wmem_en = |(opcode ^ `OP_STORE);
     
     wire [1:0] rs1_sel;
     wire [1:0] rs2_sel;
@@ -46,66 +42,16 @@ module execute (
 
     assign rs1_sel = !rs1_fwd_sig_i ? `RS_FWD : rs1_type_i;
     assign rs2_sel = !rs2_fwd_sig_i ? `RS_FWD : rs2_type_i;
-    
-//    Mux2 #(2) iffwd1 (
-//        .select(!rs1_fwd_sig_i),
-//        .hi_i(`RS_FWD),
-//        .lo_i(rs1_type_i),
-//        .data_o(rs1_sel)
-//    );
 
-//    Mux2 #(2) iffwd2 (
-//        .select(!rs2_fwd_sig_i),
-//        .hi_i(`RS_FWD),
-//        .lo_i(rs2_type_i),
-//        .data_o(rs2_sel)
-//    );
+    assign op1 =    ({64{~|{rs1_sel ^ `RS_RAW}}} & rs1_data_i) |
+                    ({64{~|{rs1_sel ^ `RS_FWD}}} & rs1_fwd_i ) |
+                    ({64{~|{rs1_sel ^ `RS_PC }}} & pc_i      ) |
+                    ({64{~|{rs1_sel ^ `RS_IMM}}} & imm_i     ) ;
 
-    assign op1 =    ~|{rs1_sel ^ `RS_RAW} ? rs1_data_i :
-                    ~|{rs1_sel ^ `RS_FWD} ? rs1_fwd_i  :
-                    ~|{rs1_sel ^ `RS_PC } ? cur_pc_i   :
-                    ~|{rs1_sel ^ `RS_IMM} ? imm_i      :
-                    64'b0;
-
-    assign op2 =    ~|{rs2_sel ^ `RS_RAW} ? rs2_data_i :
-                    ~|{rs2_sel ^ `RS_FWD} ? rs2_fwd_i  :
-                    ~|{rs2_sel ^ `RS_PC } ? 64'd4      :
-                    ~|{rs2_sel ^ `RS_IMM} ? imm_i      :
-                    64'b0;
-
-//    Muxplexer #(
-//        .NR_KEY(4),
-//        .KEY_LEN(2),
-//        .DATA_LEN(64)
-//    ) mux_rs1 (
-//        .data_o(op1),
-//        .key_i(rs1_sel),
-//        .default_i(64'b0),
-//        .lut_i({
-//            // RV32I Base Instruct Set
-//            `RS_RAW, rs1_data_i,
-//            `RS_FWD, rs1_fwd_i,
-//            `RS_PC,  cur_pc_i,
-//            `RS_IMM, imm_i
-//        })
-//    );
-
-//    Muxplexer #(
-//        .NR_KEY(4),
-//        .KEY_LEN(2),
-//        .DATA_LEN(64)
-//    ) mux_rs2 (
-//        .data_o(op2),
-//        .key_i(rs2_sel),
-//        .default_i(64'b0),
-//        .lut_i({
-//            // RV32I Base Instruct Set
-//            `RS_RAW, rs2_data_i,
-//            `RS_FWD, rs2_fwd_i,
-//            `RS_PC,  64'd4,
-//            `RS_IMM, imm_i
-//        })
-//    );
+    assign op2 =    ({64{~|{rs2_sel ^ `RS_RAW}}} & rs2_data_i) |
+                    ({64{~|{rs2_sel ^ `RS_FWD}}} & rs2_fwd_i ) |
+                    ({64{~|{rs2_sel ^ `RS_PC }}} & 64'd4     ) |
+                    ({64{~|{rs2_sel ^ `RS_IMM}}} & imm_i     ) ;
 
     wire [`DATA_LEN] add_res;
     assign add_res = (opcode == `OP_OP && funct7 == `FUNCT7_ALT) ? op1 - op2 : op1 + op2;
@@ -151,65 +97,30 @@ module execute (
 
     wire [`DATA_LEN] op_res;
 
-    assign op_res = ~|{funct3 ^ `FUNCT3_ADD } ? add_res :
-                    ~|{funct3 ^ `FUNCT3_OR  } ? or_res  :
-                    ~|{funct3 ^ `FUNCT3_SLL } ? sll_res :
-                    ~|{funct3 ^ `FUNCT3_SLT } ? slt_res :
-                    ~|{funct3 ^ `FUNCT3_SLTU} ? sltu_res:
-                    ~|{funct3 ^ `FUNCT3_SRL } ? sr_res  :
-                    ~|{funct3 ^ `FUNCT3_XOR } ? xor_res :
-                    ~|{funct3 ^ `FUNCT3_AND } ? and_res :
-                    64'b0;
+    assign op_res = ({64{~|{funct3 ^ `FUNCT3_ADD }}} & add_res ) |
+                    ({64{~|{funct3 ^ `FUNCT3_OR  }}} & or_res  ) |
+                    ({64{~|{funct3 ^ `FUNCT3_SLL }}} & sll_res ) |
+                    ({64{~|{funct3 ^ `FUNCT3_SLT }}} & slt_res ) |
+                    ({64{~|{funct3 ^ `FUNCT3_SLTU}}} & sltu_res) |
+                    ({64{~|{funct3 ^ `FUNCT3_SRL }}} & sr_res  ) |
+                    ({64{~|{funct3 ^ `FUNCT3_XOR }}} & xor_res ) |
+                    ({64{~|{funct3 ^ `FUNCT3_AND }}} & and_res ) ;
 
-//    Muxplexer #(
-//        .NR_KEY(8),
-//        .KEY_LEN(3),
-//        .DATA_LEN(64),
-//        .HAS_DEFAULT(1'b1)
-//    ) mux_op_res (
-//        .data_o(op_res),
-//        .key_i(funct3),
-//        .default_i(64'b0),
-//        .lut_i({
-//            // RV32I Base Instruct Set
-//            `FUNCT3_ADD,  add_res,
-//            `FUNCT3_OR,   or_res,
-//            `FUNCT3_SLL,  sll_res,
-//            `FUNCT3_SLT,  slt_res,
-//            `FUNCT3_SLTU, sltu_res,
-//            `FUNCT3_SRL,  sr_res,
-//            `FUNCT3_XOR,  xor_res,
-//            `FUNCT3_AND,  and_res
-//        })
-//    );
+    wire is_bnh, en_jmp, is_jalr;
 
-    assign jmp  =   ~|{funct3 ^ `FUNCT3_BEQ } ?  |xor_res :
+    assign is_jalr = ~|{opcode ^ `OP_JALR };
+    assign is_bnh  = ~|{opcode ^ `OP_BRANCH };
+    assign en_jmp = ~|{funct3 ^ `FUNCT3_BEQ } ?  |xor_res :
                     ~|{funct3 ^ `FUNCT3_BNE } ? ~|xor_res :
                     ~|{funct3 ^ `FUNCT3_BLT } ? ~|slt_res :
                     ~|{funct3 ^ `FUNCT3_BGE } ?  |slt_res :
                     ~|{funct3 ^ `FUNCT3_BLTU} ? ~|sltu_res:
                     ~|{funct3 ^ `FUNCT3_BGEU} ?  |sltu_res:
-                    1'b0;
-
-//    Muxplexer #(
-//        .NR_KEY(6),
-//        .KEY_LEN(3),
-//        .DATA_LEN(1),
-//        .HAS_DEFAULT(1'b1)
-//    ) mux_jmp_res (
-//        .data_o(jmp),
-//        .key_i(funct3),
-//        .default_i(1'b0),
-//        .lut_i({
-//            // RV32I Base Instruct Set
-//            `FUNCT3_BEQ,  |xor_res,
-//            `FUNCT3_BNE,  ~|xor_res,
-//            `FUNCT3_BLT,  ~|slt_res,
-//            `FUNCT3_BGE,  |slt_res,
-//            `FUNCT3_BLTU, ~|sltu_res,
-//            `FUNCT3_BGEU, |sltu_res
-//        })
-//    );
+                    `DISABLE;
+                       
+    assign jmp = is_jalr ? `ENABLE:
+                 is_bnh  ? en_jmp :
+                 `DISABLE;
 
     assign result_o =   ~|{opcode ^ `OP_LUI     } ? imm_i  :
                         ~|{opcode ^ `OP_AUIPC   } ? add_res:
@@ -223,29 +134,4 @@ module execute (
                         ~|{opcode ^ `OP_MISC_MEM} ? imm_i  :
                         ~|{opcode ^ `OP_SYSTEM  } ? imm_i  :
                         64'b0;
-
-//    Muxplexer #(
-//        .NR_KEY(11),
-//        .KEY_LEN(7),
-//        .DATA_LEN(64),
-//        .HAS_DEFAULT(1'b1)
-//    ) mux_result (
-//        .data_o(result_o),
-//        .key_i(opcode),
-//        .default_i(64'b0),
-//        .lut_i({
-//            // RV32I Base Instruct Set
-//            `OP_LUI,        imm_i,
-//            `OP_AUIPC,      add_res,
-//            `OP_JAL,        add_res,
-//            `OP_JALR,       add_res,
-//            `OP_BRANCH,     imm_i,
-//            `OP_LOAD,       add_res,
-//            `OP_STORE,      add_res,
-//            `OP_OP_IMM,     op_res,
-//            `OP_OP,         op_res,
-//            `OP_MISC_MEM,   imm_i,
-//            `OP_SYSTEM,     imm_i
-//        })
-//    );
 endmodule
